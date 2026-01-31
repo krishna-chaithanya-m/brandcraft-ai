@@ -11,6 +11,7 @@ export interface BrandProject {
   userId: string;
   name: string;
   industry: string;
+  keywords?: string; // Added keywords field
   tagline?: string;
   colors?: string[];
   logoUrl?: string;
