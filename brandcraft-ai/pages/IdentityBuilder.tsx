@@ -15,26 +15,43 @@ interface IdentityBuilderProps {
 
 const IdentityBuilder: React.FC<IdentityBuilderProps> = ({ project, currentUser, onAuthRequired, onUpdate, onNavigate }) => {
   const [industry, setIndustry] = useState(project?.industry || '');
-  const [keywords, setKeywords] = useState('');
+  const [keywords, setKeywords] = useState(project?.keywords || '');
   const [loading, setLoading] = useState(false);
   const [strategyLoading, setStrategyLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<{ name: string; meaning: string }[]>([]);
   const [selectedName, setSelectedName] = useState(project?.name || '');
   const [engine, setEngine] = useState<TextEngine>('gemini');
 
-  // Sync state if project is loaded from history after mounting (e.g. login/guest flow)
+  // Sync state when the project prop updates (e.g. after auth or session restore)
   useEffect(() => {
-    if (project?.industry && !industry) {
-      setIndustry(project.industry);
+    if (project) {
+      if (project.industry && project.industry !== industry) {
+        setIndustry(project.industry);
+      }
+      if (project.keywords && project.keywords !== keywords) {
+        setKeywords(project.keywords);
+      }
+      if (project.name && project.name !== selectedName) {
+        setSelectedName(project.name);
+      }
     }
-    if (project?.name && !selectedName) {
-      setSelectedName(project.name);
-    }
-  }, [project]);
+  }, [project?.id, project?.userId]); // Only sync when the project identity itself changes
 
   const handleGenerateNames = async () => {
     if (!industry || !keywords) return;
-    if (!currentUser) return onAuthRequired();
+    
+    // If visitor types data but isn't logged in, save context to "scratchpad" first
+    if (!currentUser) {
+      onUpdate({
+        id: project?.id || Date.now().toString(),
+        userId: 'temp',
+        name: selectedName,
+        industry,
+        keywords,
+        description: project?.description || `Brand in ${industry} characterized by ${keywords}.`
+      });
+      return onAuthRequired();
+    }
     
     setLoading(true);
     try {
@@ -63,13 +80,26 @@ const IdentityBuilder: React.FC<IdentityBuilderProps> = ({ project, currentUser,
   };
 
   const finalizeIdentity = (name: string) => {
-    if (!currentUser) return onAuthRequired();
+    if (!currentUser) {
+      // Allow name selection even if not logged in, but save it to scratchpad
+      setSelectedName(name);
+      onUpdate({
+        id: project?.id || Date.now().toString(),
+        userId: 'temp',
+        name,
+        industry,
+        keywords,
+        description: `Brand in ${industry} characterized by ${keywords}.`
+      });
+      return onAuthRequired();
+    }
 
     const newProject: BrandProject = {
       id: project?.id || Date.now().toString(),
       userId: currentUser.id, 
       name,
       industry,
+      keywords,
       description: `A forward-thinking brand in the ${industry} space, characterized by ${keywords}.`,
       logoUrl: project?.logoUrl,
       strategy: project?.strategy
@@ -85,7 +115,7 @@ const IdentityBuilder: React.FC<IdentityBuilderProps> = ({ project, currentUser,
       <section className="section-card p-8 md:p-12 animate-fadeInUp">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
           <div>
-            <h2 className="text-3xl font-bold text-indigo-600 mb-2">Brand Name Generator</h2>
+            <h2 className="text-3xl font-bold text-indigo-600 mb-2 font-brand">Brand Name Generator</h2>
             <p className="text-slate-500">Define your industry and keywords to find the perfect name.</p>
           </div>
           <div className="flex bg-slate-100/50 p-1.5 rounded-xl border border-indigo-50 w-full md:w-auto">
