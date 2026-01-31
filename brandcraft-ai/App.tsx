@@ -21,7 +21,7 @@ const App: React.FC = () => {
   const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
-    // Initial load check
+    // Initial load check for existing session
     const session = getCurrentSession();
     if (session) {
       setCurrentUser(session);
@@ -34,10 +34,14 @@ const App: React.FC = () => {
   }, []);
 
   const handleUpdateProject = (project: BrandProject) => {
-    if (!currentUser) return;
-    const projectWithUser = { ...project, userId: currentUser.id };
-    setActiveProject(projectWithUser);
-    saveProject(projectWithUser);
+    // Update the local state (scratchpad) immediately
+    setActiveProject(project);
+    
+    // Persist to storage only if a session exists
+    if (currentUser) {
+      const projectWithUser = { ...project, userId: currentUser.id };
+      saveProject(projectWithUser);
+    }
   };
 
   const handleLogout = () => {
@@ -49,19 +53,24 @@ const App: React.FC = () => {
   };
 
   const syncUserSession = (user: User) => {
+    const historicalProject = getLatestUserProject(user.id);
+    
+    // CRITICAL: Merge current scratchpad with history instead of overwriting
+    if (activeProject) {
+      const mergedProject: BrandProject = {
+        ...(historicalProject || {}), // Start with history if it exists
+        ...activeProject,            // Overlay with what the user JUST typed
+        id: activeProject.id || historicalProject?.id || Date.now().toString(),
+        userId: user.id              // Assign to the new user ID
+      };
+      setActiveProject(mergedProject);
+      saveProject(mergedProject);
+    } else if (historicalProject) {
+      setActiveProject(historicalProject);
+    }
+
     setCurrentUser(user);
     setShowAuth(false);
-    
-    // If we have an "unsaved" project or the user has one in history, load it
-    const lastProject = getLatestUserProject(user.id);
-    if (lastProject) {
-      setActiveProject(lastProject);
-    } else if (activeProject) {
-      // If user typed context as guest/visitor, preserve it for the new user ID
-      const updatedProject = { ...activeProject, userId: user.id };
-      setActiveProject(updatedProject);
-      saveProject(updatedProject);
-    }
   };
 
   const handleAuthSuccess = (user: User) => {
@@ -110,14 +119,14 @@ const App: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-indigo-600">
       <div className="text-white flex flex-col items-center gap-4">
         <Zap className="animate-glow" size={64} />
-        <h1 className="text-2xl font-bold">Initializing BrandCraft...</h1>
+        <h1 className="text-2xl font-bold font-brand">Initializing BrandCraft...</h1>
       </div>
     </div>
   );
 
   return (
     <div className="min-h-screen flex flex-col relative">
-      {/* Auth Modal Overlay - High Z-Index to prevent unmounting background context */}
+      {/* Auth Modal Overlay - Preservation logic: keeps background mounted and state alive */}
       {showAuth && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fadeIn">
           <Auth 
@@ -129,7 +138,7 @@ const App: React.FC = () => {
       )}
 
       {/* Header / Navbar */}
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md shadow-lg transition-all">
+      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md shadow-lg">
         <nav className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div 
             className="flex items-center gap-2 cursor-pointer"
