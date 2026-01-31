@@ -49,7 +49,7 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess, onGuest, onCancel }) => {
   const inputClass = "w-full pl-12 pr-5 py-4 rounded-2xl bg-slate-50 border-2 border-transparent focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none transition-all placeholder:text-slate-400 font-medium text-slate-700";
 
   return (
-    <div className="w-full max-w-md section-card p-8 md:p-10 animate-popIn relative shadow-2xl">
+    <div className="w-full max-w-md section-card p-8 md:p-10 animate-popIn relative shadow-2xl bg-white border border-slate-100">
       {onCancel && (
         <button 
           onClick={onCancel}
@@ -132,8 +132,8 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess, onGuest, onCancel }) => {
         </button>
       </form>
 
-      <div className="mt-8 pt-6 border-t border-slate-100 text-center">
-        <p className="text-slate-500 font-medium">
+      <div className="mt-8 pt-6 border-t border-slate-100 text-center space-y-4">
+        <p className="text-slate-500 font-medium text-sm">
           {isLogin ? "Don't have an account?" : "Already have an account?"}
           <button
             onClick={() => setIsLogin(!isLogin)}
@@ -143,12 +143,19 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess, onGuest, onCancel }) => {
           </button>
         </p>
         {onGuest && (
-          <button
-            onClick={onGuest}
-            className="mt-4 text-xs text-slate-400 hover:text-indigo-600 underline font-medium"
-          >
-            Continue as Guest
-          </button>
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-full flex items-center gap-3 py-2">
+              <div className="flex-1 h-px bg-slate-100" />
+              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">or</span>
+              <div className="flex-1 h-px bg-slate-100" />
+            </div>
+            <button
+              onClick={onGuest}
+              className="text-xs text-slate-400 hover:text-indigo-600 font-bold py-2 px-4 rounded-lg hover:bg-slate-50 transition-all border border-transparent hover:border-slate-100"
+            >
+              Skip and Continue as Guest
+            </button>
+          </div>
         )}
       </div>
     </div>
