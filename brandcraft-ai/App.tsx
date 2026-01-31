@@ -54,7 +54,17 @@ const App: React.FC = () => {
     setShowAuth(false);
     // Load this user's specific project immediately after login
     const lastProject = getLatestUserProject(user.id);
-    setActiveProject(lastProject);
+    setActiveProject(lastProject || null);
+  };
+
+  const handleGuestMode = () => {
+    const guest: User = { id: 'guest', email: 'guest@brandcraft.ai', username: 'Guest' };
+    setCurrentUser(guest);
+    setShowAuth(false);
+    // Persist guest session in Local Storage so refresh doesn't break it
+    localStorage.setItem('brandcraft_current_session', JSON.stringify(guest));
+    const lastProject = getLatestUserProject(guest.id);
+    setActiveProject(lastProject || null);
   };
 
   const onAuthRequired = () => {
@@ -70,11 +80,7 @@ const App: React.FC = () => {
     { id: AppTab.ASSISTANT, label: 'Branding Chat' },
   ];
 
-  const renderContent = () => {
-    if (showAuth) {
-      return <Auth onAuthSuccess={handleAuthSuccess} onCancel={() => setShowAuth(false)} />;
-    }
-
+  const renderTabContent = () => {
     switch (activeTab) {
       case AppTab.DASHBOARD:
         return <Dashboard project={activeProject} onNavigate={setActiveTab} />;
@@ -103,7 +109,18 @@ const App: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col relative">
+      {/* Auth Modal Overlay */}
+      {showAuth && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fadeIn">
+          <Auth 
+            onAuthSuccess={handleAuthSuccess} 
+            onGuest={handleGuestMode} 
+            onCancel={() => setShowAuth(false)} 
+          />
+        </div>
+      )}
+
       {/* Header / Navbar */}
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md shadow-lg transition-all">
         <nav className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
@@ -222,7 +239,7 @@ const App: React.FC = () => {
 
       {/* Main Content Area */}
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 py-8">
-        {renderContent()}
+        {renderTabContent()}
       </main>
 
       {/* Footer */}
