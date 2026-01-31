@@ -25,7 +25,6 @@ const App: React.FC = () => {
     const session = getCurrentSession();
     if (session) {
       setCurrentUser(session);
-      // Load this user's specific project
       const lastProject = getLatestUserProject(session.id);
       if (lastProject) {
         setActiveProject(lastProject);
@@ -49,22 +48,30 @@ const App: React.FC = () => {
     setIsMenuOpen(false);
   };
 
-  const handleAuthSuccess = (user: User) => {
+  const syncUserSession = (user: User) => {
     setCurrentUser(user);
     setShowAuth(false);
-    // Load this user's specific project immediately after login
+    
+    // If we have an "unsaved" project or the user has one in history, load it
     const lastProject = getLatestUserProject(user.id);
-    setActiveProject(lastProject || null);
+    if (lastProject) {
+      setActiveProject(lastProject);
+    } else if (activeProject) {
+      // If user typed context as guest/visitor, preserve it for the new user ID
+      const updatedProject = { ...activeProject, userId: user.id };
+      setActiveProject(updatedProject);
+      saveProject(updatedProject);
+    }
+  };
+
+  const handleAuthSuccess = (user: User) => {
+    syncUserSession(user);
   };
 
   const handleGuestMode = () => {
     const guest: User = { id: 'guest', email: 'guest@brandcraft.ai', username: 'Guest' };
-    setCurrentUser(guest);
-    setShowAuth(false);
-    // Persist guest session in Local Storage so refresh doesn't break it
     localStorage.setItem('brandcraft_current_session', JSON.stringify(guest));
-    const lastProject = getLatestUserProject(guest.id);
-    setActiveProject(lastProject || null);
+    syncUserSession(guest);
   };
 
   const onAuthRequired = () => {
@@ -110,7 +117,7 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col relative">
-      {/* Auth Modal Overlay */}
+      {/* Auth Modal Overlay - High Z-Index to prevent unmounting background context */}
       {showAuth && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fadeIn">
           <Auth 
@@ -134,7 +141,6 @@ const App: React.FC = () => {
             <span className="text-2xl font-bold brand-logo">BrandCraft</span>
           </div>
 
-          {/* Nav Links - Always visible to encourage exploration */}
           <ul className="hidden lg:flex gap-8 list-none">
             {navLinks.map((link) => (
               <li key={link.id}>
@@ -164,37 +170,24 @@ const App: React.FC = () => {
                     {currentUser.username}
                   </span>
                 </div>
-                <button 
-                  onClick={handleLogout}
-                  className="text-slate-400 hover:text-rose-500 transition-colors p-2"
-                  title="Logout"
-                >
+                <button onClick={handleLogout} className="text-slate-400 hover:text-rose-500 transition-colors p-2" title="Logout">
                   <LogOut size={20} />
                 </button>
               </div>
             ) : (
               <div className="hidden lg:block border-l border-slate-100 pl-6">
-                <button 
-                  onClick={() => setShowAuth(true)}
-                  className="flex items-center gap-2 text-indigo-600 font-bold hover:text-indigo-700 transition-colors"
-                >
-                  <LogIn size={20} />
-                  Sign In
+                <button onClick={() => setShowAuth(true)} className="flex items-center gap-2 text-indigo-600 font-bold hover:text-indigo-700 transition-colors">
+                  <LogIn size={20} /> Sign In
                 </button>
               </div>
             )}
 
-            {/* Mobile Toggle */}
-            <button 
-              className="lg:hidden p-2 text-slate-600"
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-            >
+            <button className="lg:hidden p-2 text-slate-600" onClick={() => setIsMenuOpen(!isMenuOpen)}>
               {isMenuOpen ? <X size={28} /> : <Menu size={28} />}
             </button>
           </div>
         </nav>
 
-        {/* Mobile Nav Overlay */}
         {isMenuOpen && (
           <div className="lg:hidden absolute top-full left-0 w-full bg-white shadow-xl border-t border-slate-100 p-6 flex flex-col gap-4 animate-fadeInUp">
             {currentUser && (
@@ -206,30 +199,18 @@ const App: React.FC = () => {
             {navLinks.map((link) => (
               <button
                 key={link.id}
-                onClick={() => {
-                  setActiveTab(link.id);
-                  setShowAuth(false);
-                  setIsMenuOpen(false);
-                }}
-                className={`text-left text-lg font-bold py-2 ${
-                  activeTab === link.id && !showAuth ? 'text-indigo-600' : 'text-slate-600'
-                }`}
+                onClick={() => { setActiveTab(link.id); setShowAuth(false); setIsMenuOpen(false); }}
+                className={`text-left text-lg font-bold py-2 ${activeTab === link.id && !showAuth ? 'text-indigo-600' : 'text-slate-600'}`}
               >
                 {link.label}
               </button>
             ))}
             {currentUser ? (
-              <button
-                onClick={handleLogout}
-                className="mt-4 flex items-center gap-2 text-rose-500 font-bold py-2 border-t border-slate-100"
-              >
+              <button onClick={handleLogout} className="mt-4 flex items-center gap-2 text-rose-500 font-bold py-2 border-t border-slate-100">
                 <LogOut size={20} /> Logout
               </button>
             ) : (
-              <button
-                onClick={() => { setShowAuth(true); setIsMenuOpen(false); }}
-                className="mt-4 flex items-center gap-2 text-indigo-600 font-bold py-2 border-t border-slate-100"
-              >
+              <button onClick={() => { setShowAuth(true); setIsMenuOpen(false); }} className="mt-4 flex items-center gap-2 text-indigo-600 font-bold py-2 border-t border-slate-100">
                 <LogIn size={20} /> Sign In
               </button>
             )}
@@ -237,12 +218,10 @@ const App: React.FC = () => {
         )}
       </header>
 
-      {/* Main Content Area */}
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 py-8">
         {renderTabContent()}
       </main>
 
-      {/* Footer */}
       <footer className="w-full py-8 text-center text-white/70 text-sm">
         <p>&copy; 2025 BrandCraft AI. Built with Gemini & Stable Diffusion.</p>
       </footer>
