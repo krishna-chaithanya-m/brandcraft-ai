@@ -14,7 +14,8 @@ import {
   Zap,
   ArrowRight,
   Hash,
-  Layout
+  Layout,
+  ExternalLink
 } from 'lucide-react';
 
 const getAistudio = () => (window as any).aistudio;
@@ -73,7 +74,8 @@ const VisualLab: React.FC<VisualLabProps> = ({ project, currentUser, onAuthRequi
   const handleSelectKey = async () => {
     const aistudio = getAistudio();
     if (aistudio) {
-      await aistudio.openSelectKey();
+      // Trigger dialog and assume success to mitigate race condition
+      aistudio.openSelectKey();
       setHasProKey(true);
     }
   };
@@ -91,8 +93,10 @@ const VisualLab: React.FC<VisualLabProps> = ({ project, currentUser, onAuthRequi
     if (!project) return;
     if (!currentUser) return onAuthRequired();
     
+    // If using Pro engine but no key is active, prompt for key
     if (engine === 'stable-diffusion' && !hasProKey) {
       await handleSelectKey();
+      // Proceeding immediately as per guidelines
     }
 
     setLoading(true);
@@ -105,9 +109,10 @@ const VisualLab: React.FC<VisualLabProps> = ({ project, currentUser, onAuthRequi
       }
     } catch (error: any) {
       console.error(error);
+      // If key is invalid/not found, reset key status and prompt again
       if (error.message?.includes("Requested entity was not found")) {
         setHasProKey(false);
-        await handleSelectKey();
+        handleSelectKey();
       }
     } finally {
       setLoading(false);
@@ -129,7 +134,7 @@ const VisualLab: React.FC<VisualLabProps> = ({ project, currentUser, onAuthRequi
       console.error(error);
       if (error.message?.includes("Requested entity was not found")) {
         setHasProKey(false);
-        await handleSelectKey();
+        handleSelectKey();
       }
     } finally {
       setRefining(false);
@@ -153,7 +158,7 @@ const VisualLab: React.FC<VisualLabProps> = ({ project, currentUser, onAuthRequi
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
           <div>
             <h2 className="text-3xl font-bold text-indigo-600 mb-2">Visual Lab</h2>
-            <p className="text-slate-500">Design your brand's visual identity with AI-powered logo generation.</p>
+            <p className="text-slate-500 font-medium">Design your brand's visual identity with AI-powered logo generation.</p>
           </div>
           <div className="flex bg-slate-100/50 p-1.5 rounded-xl border border-indigo-50 w-full md:w-auto overflow-x-auto">
             <button 
@@ -164,9 +169,9 @@ const VisualLab: React.FC<VisualLabProps> = ({ project, currentUser, onAuthRequi
             </button>
             <button 
               onClick={() => setEngine('stable-diffusion')}
-              className={`flex-1 md:flex-none px-6 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${engine === 'stable-diffusion' ? 'bg-white text-indigo-600 shadow-md' : 'text-slate-500 hover:text-indigo-400'}`}
+              className={`flex-1 md:flex-none px-6 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center gap-2 ${engine === 'stable-diffusion' ? 'bg-white text-indigo-600 shadow-md' : 'text-slate-500 hover:text-indigo-400'}`}
             >
-              Gemini Pro
+              Gemini Pro <span className="bg-indigo-100 text-indigo-600 text-[8px] px-1.5 py-0.5 rounded-full">PRO</span>
             </button>
           </div>
         </div>
@@ -245,23 +250,35 @@ const VisualLab: React.FC<VisualLabProps> = ({ project, currentUser, onAuthRequi
               className="w-full btn-brand-gradient text-white py-4 rounded-xl font-bold shadow-xl flex items-center justify-center gap-3 disabled:opacity-50 hover:brightness-110 active:scale-95 transition-all"
             >
               {loading ? <RefreshCcw className="animate-spin" size={24} /> : <Wand2 size={24} />}
-              {engine === 'stable-diffusion' && !hasProKey ? 'Select Pro Key to Generate' : 'Generate Brand Logo'}
+              {engine === 'stable-diffusion' && !hasProKey ? 'Activate Pro Engine' : 'Generate Brand Logo'}
             </button>
 
             {engine === 'stable-diffusion' && (
-              <div className="p-4 bg-indigo-50/50 rounded-xl border border-indigo-100 flex items-center gap-4">
-                <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
-                  <Key size={20} />
+              <div className="p-5 bg-indigo-50/50 rounded-2xl border border-indigo-100 space-y-3">
+                <div className="flex items-center gap-4">
+                  <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
+                    <Key size={20} />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-indigo-900">Gemini Pro Image Engine</p>
+                    <p className="text-xs text-indigo-600/80 font-medium">Requires a paid API key from a billable GCP project.</p>
+                  </div>
+                  {!hasProKey && (
+                    <button onClick={handleSelectKey} className="text-xs font-bold bg-indigo-600 text-white px-4 py-2 rounded-lg shadow-md hover:bg-indigo-700 transition-all">
+                      Select Key
+                    </button>
+                  )}
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-bold text-indigo-900">Pro Features Enabled</p>
-                  <p className="text-xs text-indigo-600/80">Gemini Pro Image requires a paid API key for high-quality generation.</p>
+                <div className="pt-2 border-t border-indigo-100/50">
+                  <a 
+                    href="https://ai.google.dev/gemini-api/docs/billing" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-[10px] text-slate-400 hover:text-indigo-600 flex items-center gap-1 font-bold underline transition-colors"
+                  >
+                    View Billing Documentation <ExternalLink size={10} />
+                  </a>
                 </div>
-                {!hasProKey && (
-                  <button onClick={handleSelectKey} className="text-xs font-bold bg-indigo-600 text-white px-3 py-1.5 rounded-lg shadow-sm">
-                    Select Key
-                  </button>
-                )}
               </div>
             )}
           </div>
