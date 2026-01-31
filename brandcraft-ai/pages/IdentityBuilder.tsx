@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrandProject, AppTab, User } from '../types';
 import { generateBrandNames, generateBrandStrategy, TextEngine } from '../services/gemini';
 import Loader from '../components/Loader';
@@ -21,6 +21,16 @@ const IdentityBuilder: React.FC<IdentityBuilderProps> = ({ project, currentUser,
   const [suggestions, setSuggestions] = useState<{ name: string; meaning: string }[]>([]);
   const [selectedName, setSelectedName] = useState(project?.name || '');
   const [engine, setEngine] = useState<TextEngine>('gemini');
+
+  // Sync state if project is loaded from history after mounting (e.g. login/guest flow)
+  useEffect(() => {
+    if (project?.industry && !industry) {
+      setIndustry(project.industry);
+    }
+    if (project?.name && !selectedName) {
+      setSelectedName(project.name);
+    }
+  }, [project]);
 
   const handleGenerateNames = async () => {
     if (!industry || !keywords) return;
@@ -155,7 +165,6 @@ const IdentityBuilder: React.FC<IdentityBuilderProps> = ({ project, currentUser,
                <p className="text-slate-400 font-medium italic">Names will appear here after generation.</p>
              )}
 
-             {/* Next Step CTA */}
              {selectedName && (
                <div className="mt-8 w-full animate-fadeInUp">
                  <button 
